@@ -102,14 +102,14 @@ public class ImageWrapper {
     }
 
     /**
-     * @see Image#getAnimated()
+     * @see Image#getFormat()
      */
-    public Boolean getAnimated() {
-        return mImage.getAnimated();
+    public int getFormat() {
+        return mImage.getFormat();
     }
 
     /**
-     * @see Image#getAnimated()
+     * @see Image#getFormat()
      */
     public int getWidth() {
         return mCut.width();
@@ -126,7 +126,7 @@ public class ImageWrapper {
      * @see Image#render(int, int, Bitmap, int, int, int, int)
      */
     public void render(int srcX, int srcY, Bitmap dst, int dstX, int dstY,
-                       int width, int height, boolean fillBlank, int defaultColor) {
+                       int width, int height) {
         mImage.render(srcX + mCut.left, srcY + mCut.top, dst, dstX, dstY,
                 width, height);
     }
@@ -139,10 +139,10 @@ public class ImageWrapper {
     }
 
     /**
-     * @see Image#start()
+     * @see Image#advance()
      */
-    public void start() {
-        mImage.start();
+    public void advance() {
+        mImage.advance();
     }
 
     /**

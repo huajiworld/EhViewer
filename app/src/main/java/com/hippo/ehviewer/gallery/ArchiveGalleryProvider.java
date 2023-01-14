@@ -17,7 +17,6 @@
 package com.hippo.ehviewer.gallery;
 
 import android.content.Context;
-import android.graphics.ImageDecoder;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Process;
@@ -38,7 +37,6 @@ import com.hippo.yorozuya.thread.PriorityThread;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -53,14 +51,15 @@ public class ArchiveGalleryProvider extends GalleryProvider2 {
     public static PVLock pv = new PVLock(0);
     private final UriArchiveAccessor archiveAccessor;
     private final Stack<Integer> requests = new Stack<>();
-    private final LinkedHashMap<Integer, ByteBuffer> streams = new LinkedHashMap<>();
-    private final Thread[] decodeThread = new Thread[]{
+    private final LinkedHashMap<Integer, Long> streams = new LinkedHashMap<>();
+    private Thread archiveThread;
+    private Thread[] decodeThread = new Thread[] {
             new Thread(new DecodeTask()),
             new Thread(new DecodeTask()),
             new Thread(new DecodeTask()),
             new Thread(new DecodeTask())
     };
-    private Thread archiveThread;
+
     private volatile int size = STATE_WAIT;
     private String error;
 
@@ -188,7 +187,7 @@ public class ArchiveGalleryProvider extends GalleryProvider2 {
     }
 
     private class ArchiveHostTask implements Runnable {
-        public final Thread[] archiveThreads = new Thread[]{
+        public final Thread[] archiveThreads = new Thread[] {
                 new Thread(new ArchiveTask()),
                 new Thread(new ArchiveTask()),
                 new Thread(new ArchiveTask()),
@@ -299,10 +298,10 @@ public class ArchiveGalleryProvider extends GalleryProvider2 {
                     }
                 }
 
-                ByteBuffer buffer = archiveAccessor.extractToByteBuffer(index);
+                long addr = archiveAccessor.extractToAddr(index);
 
                 synchronized (streams) {
-                    streams.put(index, buffer);
+                    streams.put(index, addr);
                     streams.notify();
                 }
             }
@@ -314,7 +313,7 @@ public class ArchiveGalleryProvider extends GalleryProvider2 {
         public void run() {
             while (!Thread.currentThread().isInterrupted()) {
                 int index;
-                ByteBuffer buffer;
+                Long addr;
                 synchronized (streams) {
                     if (streams.isEmpty()) {
                         try {
@@ -325,25 +324,14 @@ public class ArchiveGalleryProvider extends GalleryProvider2 {
                         continue;
                     }
 
-                    Iterator<Map.Entry<Integer, ByteBuffer>> iterator = streams.entrySet().iterator();
-                    Map.Entry<Integer, ByteBuffer> entry = iterator.next();
+                    Iterator<Map.Entry<Integer, Long>> iterator = streams.entrySet().iterator();
+                    Map.Entry<Integer, Long> entry = iterator.next();
                     iterator.remove();
                     index = entry.getKey();
-                    buffer = entry.getValue();
+                    addr = entry.getValue();
                 }
 
-                Image image = null;
-                if (buffer != null) {
-                    try {
-                        image = Image.decode(buffer, false, () -> {
-                            archiveAccessor.releaseByteBuffer(buffer);
-                            return null;
-                        });
-                    } catch (ImageDecoder.DecodeException e) {
-                        archiveAccessor.releaseByteBuffer(buffer);
-                        e.printStackTrace();
-                    }
-                }
+                Image image = Image.decodeAddr(addr);
                 if (image != null) {
                     notifyPageSucceed(index, image);
                 } else {

@@ -19,13 +19,11 @@
 
 #include <assert.h>
 #include <stdbool.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include <pthread.h>
 #include <sys/mman.h>
-#include <syscall.h>
 
 #include <jni.h>
 #include <android/log.h>
@@ -312,8 +310,8 @@ Java_com_hippo_UriArchiveAccessor_openArchive(JNIEnv *env, jobject thiz, jint fd
     return r;
 }
 
-JNIEXPORT jobject JNICALL
-Java_com_hippo_UriArchiveAccessor_extractToByteBuffer(JNIEnv *env, jobject thiz, jint index) {
+JNIEXPORT jlong JNICALL
+Java_com_hippo_UriArchiveAccessor_extractToAddr(JNIEnv *env, jobject thiz, jint index) {
     EH_UNUSED(env);
     EH_UNUSED(thiz);
     index = entries[index].index;
@@ -323,16 +321,17 @@ Java_com_hippo_UriArchiveAccessor_extractToByteBuffer(JNIEnv *env, jobject thiz,
     if (ret)
         return 0;
     long long size = archive_entry_size(ctx->entry);
-    void *buffer = malloc(size);
+    void *buffer = malloc(size + sizeof(long long));
     if (!buffer) {
         ctx->using = 0;
         LOGE("Allocate buffer for decompression failed:ENOMEM");
         return 0;
     }
-    ret = archive_read_data(ctx->arc, buffer, size);
+    *(long long *) buffer = size;
+    ret = archive_read_data(ctx->arc, buffer + sizeof(long long), size);
     ctx->using = 0;
     if (ret == size)
-        return (*env)->NewDirectByteBuffer(env, buffer, size);
+        return (jlong) buffer;
     if (ret != size)
         LOGE("%s", "No enough data read, WTF?");
     if (ret < 0)
@@ -423,11 +422,4 @@ Java_com_hippo_UriArchiveAccessor_extractToFd(JNIEnv *env, jobject thiz, jint in
         archive_read_data_into_fd(ctx->arc, fd);
         ctx->using = 0;
     }
-}
-
-JNIEXPORT void JNICALL
-Java_com_hippo_UriArchiveAccessor_releaseByteBuffer(JNIEnv *env, jobject thiz, jobject buffer) {
-    EH_UNUSED(thiz);
-    void *addr = (*env)->GetDirectBufferAddress(env, buffer);
-    free(addr);
 }

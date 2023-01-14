@@ -233,7 +233,7 @@ public class ImageTexture implements Texture, Animatable {
         }
 
         boolean end = mReleased.get() || mImage.isImageRecycled() || mNeedRelease.get() ||
-                (!mImage.getAnimated()) || mRunning.get();
+                (mImage.getFormat() == 0) || mRunning.get();
 
         synchronized (mImage) {
             mImageBusy = false;
@@ -595,7 +595,7 @@ public class ImageTexture implements Texture, Animatable {
                 // Release image
                 mImageBusy = false;
                 // Check need release, frameCount <= 1
-                if (mNeedRelease.get() || !mImage.getAnimated()) {
+                if (mNeedRelease.get() || mImage.getFormat() == 0) {
                     mAnimateRunnable = null;
                     return;
                 }
@@ -617,7 +617,7 @@ public class ImageTexture implements Texture, Animatable {
                     mImageBusy = true;
                 }
 
-                mImage.start();
+                mImage.advance();
                 long delay = mImage.getDelay();
                 long time = System.nanoTime();
                 if (-1L != lastDelay) {

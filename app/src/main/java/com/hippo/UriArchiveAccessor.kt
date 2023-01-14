@@ -19,7 +19,6 @@ package com.hippo
 
 import android.content.Context
 import android.net.Uri
-import java.nio.ByteBuffer
 
 class UriArchiveAccessor(ctx: Context, uri: Uri) {
     val pfd by lazy { ctx.contentResolver.openFileDescriptor(uri, "r")!! }
@@ -28,9 +27,7 @@ class UriArchiveAccessor(ctx: Context, uri: Uri) {
     }
 
     private external fun openArchive(fd: Int, size: Long): Int
-    external fun extractToByteBuffer(index: Int): ByteBuffer?
-
-    external fun releaseByteBuffer(buffer: ByteBuffer)
+    external fun extractToAddr(index: Int): Long
     external fun extractToFd(index: Int, fd: Int)
     external fun getFilename(index: Int): String
     external fun needPassword(): Boolean

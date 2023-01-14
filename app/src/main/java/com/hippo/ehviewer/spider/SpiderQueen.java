@@ -18,7 +18,6 @@ package com.hippo.ehviewer.spider;
 
 import android.content.Context;
 import android.graphics.BitmapFactory;
-import android.graphics.ImageDecoder;
 import android.os.AsyncTask;
 import android.os.Process;
 import android.text.TextUtils;
@@ -1666,8 +1665,8 @@ public final class SpiderQueen implements Runnable {
 
                 if (is != null) {
                     try {
-                        image = Image.decode(((FileInputStream) is), false);
-                    } catch (ImageDecoder.DecodeException e) {
+                        image = Image.decode(((FileInputStream) is).getFD());
+                    } catch (IOException e) {
                         e.printStackTrace();
                     } finally {
                         try {

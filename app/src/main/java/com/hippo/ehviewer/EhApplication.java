@@ -310,7 +310,6 @@ public class EhApplication extends SceneApplication {
 
         super.onCreate();
 
-        Image.initialize(this);
         Native.initialize();
         ClipboardUtil.initialize(this);
         GetText.initialize(this);
@@ -476,6 +475,9 @@ public class EhApplication extends SceneApplication {
                 if (DEBUG_PRINT_NATIVE_MEMORY) {
                     Log.i(TAG, "Native memory: " + FileUtils.humanReadableByteCount(
                             Debug.getNativeHeapAllocatedSize(), false));
+                }
+                if (DEBUG_PRINT_IMAGE_COUNT) {
+                    Log.i(TAG, "Image count: " + Image.getImageCount());
                 }
                 SimpleHandler.getInstance().postDelayed(this, DEBUG_PRINT_INTERVAL);
             }

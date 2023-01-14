@@ -112,6 +112,7 @@ public class ImageMovableTextTexture extends ImageSpriteTexture {
         }
 
         Image image = Image.create(bitmap);
+        bitmap.recycle();
         if (image == null) {
             return null;
         }

@@ -4,10 +4,10 @@
 </h1>
 
 <p align="center">
-  <a href="https://github.com/EhViewer-NekoInverter/EhViewer/actions/workflows/ci.yml">
-    <img src="https://img.shields.io/github/actions/workflow/status/EhViewer-NekoInverter/EhViewer/ci.yml?branch=eh-1.7.28.x&style=flat-square" alt="Github Actions">
+  <a href="https://github.com/EhViewer-NekoInverter/EhViewer/actions/workflows/ci.yml?query=branch%3Aeh-1.8.x.x-dev">
+    <img src="https://img.shields.io/github/actions/workflow/status/EhViewer-NekoInverter/EhViewer/ci.yml?branch=eh-1.8.x.x-dev&style=flat-square" alt="Github Actions">
   </a>
-  <a href="https://github.com/EhViewer-NekoInverter/EhViewer/blob/eh-1.7.28.x/LICENSE">
+  <a href="https://github.com/EhViewer-NekoInverter/EhViewer/blob/eh-1.8.x.x/LICENSE">
     <img src="https://img.shields.io/github/license/EhViewer-NekoInverter/EhViewer?style=flat-square" alt="LICENSE">
   </a>
   <a href="https://github.com/EhViewer-NekoInverter/Ehviewer/releases">
@@ -52,11 +52,11 @@ NekoInverter 版的 EhViewer [白E]，原作者已不再维护
 
 # 下载
 
-**注：需要 Android 9 及以上版本系统 (唯一一个支持 Android 6 的版本：[v1.7.27-final](https://github.com/EhViewer-NekoInverter/EhViewer/releases/tag/v1.7.27.final))**
+**注：需要 Android 11 及以上版本系统 (唯一一个支持 Android 6 的版本：[v1.7.27-final](https://github.com/EhViewer-NekoInverter/EhViewer/releases/tag/v1.7.27.final))**
 
 请前往 [Github Releases](https://github.com/EhViewer-NekoInverter/EhViewer/releases) 下载发行版
 
-也可以前往 [Github Actions](https://github.com/EhViewer-NekoInverter/EhViewer/actions/workflows/ci.yml) 下载 CI 版参与测试，需要登录 Github 账号
+也可以前往 [Github Actions](https://github.com/EhViewer-NekoInverter/EhViewer/actions/workflows/ci.yml?query=branch%3Aeh-1.8.x.x-dev) 下载 CI 版参与测试，需要登录 Github 账号
 
 # 截图
 

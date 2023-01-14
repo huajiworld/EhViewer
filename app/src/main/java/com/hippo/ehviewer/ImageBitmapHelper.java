@@ -36,7 +36,7 @@ public class ImageBitmapHelper implements ValueHelper<ImageBitmap> {
         try {
             isPipe.obtain();
             FileInputStream is = (FileInputStream) isPipe.open();
-            return ImageBitmap.decode(is);
+            return ImageBitmap.decode(is.getFD());
         } catch (OutOfMemoryError | IOException e) {
             return null;
         } finally {

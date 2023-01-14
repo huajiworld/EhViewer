@@ -100,13 +100,13 @@ class DownloadService : Service(), DownloadManager.DownloadListener {
             action = it
         }
         if (ACTION_START == action) {
-            val gi = intent!!.getParcelableExtra<GalleryInfo>(KEY_GALLERY_INFO)
+            @Suppress("DEPRECATION") val gi = intent!!.getParcelableExtra<GalleryInfo>(KEY_GALLERY_INFO)
             val label = intent.getStringExtra(KEY_LABEL)
             if (gi != null && mDownloadManager != null) {
                 mDownloadManager!!.startDownload(gi, label)
             }
         } else if (ACTION_START_RANGE == action) {
-            val gidList = intent!!.getParcelableExtra<LongList>(KEY_GID_LIST)
+            @Suppress("DEPRECATION") val gidList = intent!!.getParcelableExtra<LongList>(KEY_GID_LIST)
             if (gidList != null && mDownloadManager != null) {
                 mDownloadManager!!.startRangeDownload(gidList)
             }
@@ -124,7 +124,7 @@ class DownloadService : Service(), DownloadManager.DownloadListener {
                 mDownloadManager!!.stopCurrentDownload()
             }
         } else if (ACTION_STOP_RANGE == action) {
-            val gidList = intent!!.getParcelableExtra<LongList>(KEY_GID_LIST)
+            @Suppress("DEPRECATION") val gidList = intent!!.getParcelableExtra<LongList>(KEY_GID_LIST)
             if (gidList != null && mDownloadManager != null) {
                 mDownloadManager!!.stopRangeDownload(gidList)
             }
@@ -138,7 +138,7 @@ class DownloadService : Service(), DownloadManager.DownloadListener {
                 mDownloadManager!!.deleteDownload(gid)
             }
         } else if (ACTION_DELETE_RANGE == action) {
-            val gidList = intent!!.getParcelableExtra<LongList>(KEY_GID_LIST)
+            @Suppress("DEPRECATION") val gidList = intent!!.getParcelableExtra<LongList>(KEY_GID_LIST)
             if (gidList != null && mDownloadManager != null) {
                 mDownloadManager!!.deleteRangeDownload(gidList)
             }
@@ -408,7 +408,7 @@ class DownloadService : Service(), DownloadManager.DownloadListener {
 
     private fun checkStopSelf() {
         if (mDownloadManager == null || mDownloadManager!!.isIdle) {
-            stopForeground(true)
+            @Suppress("DEPRECATION") stopForeground(true)
             stopSelf()
         }
     }

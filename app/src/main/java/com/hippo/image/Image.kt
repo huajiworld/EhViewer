@@ -1,221 +1,267 @@
 /*
- * Copyright 2022 Tarsin Norbin
+ * Copyright 2016 Hippo Seven
  *
- * This file is part of EhViewer
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * EhViewer is free software: you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * EhViewer is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along with EhViewer.
- * If not, see <https://www.gnu.org/licenses/>.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package com.hippo.image
 
-import android.content.Context
-import android.content.res.Resources
 import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.ImageDecoder
-import android.graphics.ImageDecoder.ALLOCATOR_DEFAULT
-import android.graphics.ImageDecoder.ALLOCATOR_SOFTWARE
-import android.graphics.ImageDecoder.DecodeException
-import android.graphics.ImageDecoder.ImageInfo
-import android.graphics.ImageDecoder.Source
-import android.graphics.PixelFormat
-import android.graphics.drawable.AnimatedImageDrawable
-import android.graphics.drawable.BitmapDrawable
-import android.graphics.drawable.Drawable
-import androidx.core.graphics.drawable.toDrawable
-import java.io.FileInputStream
-import java.nio.ByteBuffer
-import java.nio.channels.FileChannel
-import kotlin.jvm.Throws
-import kotlin.math.min
+import com.hippo.Native.getFd
+import java.io.FileDescriptor
+import java.util.function.Consumer
 
-class Image private constructor(
-    source: Source?, drawable: Drawable? = null,
-    val hardware: Boolean = false,
-    val release: () -> Unit? = {}
-) {
-    internal var mObtainedDrawable: Drawable?
-    private var mBitmap: Bitmap? = null
-    private var mCanvas: Canvas? = null
+/**
+ * The `Image` is a image which stored pixel data in native heap
+ */
+class Image private constructor(nativePtr: Long) {
+    private var mNativePtr: Long
+    private var needRecycle = false
+    private var nativeProcessCnt = 0
 
     init {
-        mObtainedDrawable = null
-        source?.let {
-            mObtainedDrawable =
-                ImageDecoder.decodeDrawable(source) { decoder: ImageDecoder, info: ImageInfo, _: Source ->
-                    decoder.allocator = if (hardware) ALLOCATOR_DEFAULT else ALLOCATOR_SOFTWARE
-                    // Sadly we must use software memory since we need copy it to tile buffer, fuck glgallery
-                    // Idk it will cause how much performance regression
-
-                    decoder.setTargetSampleSize(
-                        min(
-                            info.size.width / (2 * screenWidth),
-                            info.size.height / (2 * screenHeight)
-                        ).coerceAtLeast(1)
-                    )
-                }
-        }
-        if (mObtainedDrawable == null) {
-            mObtainedDrawable = drawable!!
-        }
+        if (needEvictAll) evictAll()
+        mNativePtr = nativePtr
+        imageList.add(this)
     }
 
-    val animated = mObtainedDrawable is AnimatedImageDrawable
-    val width = mObtainedDrawable!!.intrinsicWidth
-    val height = mObtainedDrawable!!.intrinsicHeight
-    val isRecycled = mObtainedDrawable == null
+    /**
+     * Return the format of the image
+     */
+    val format: Int
+        get() {
+            checkRecycledAndLock()
+            val ret = nativeGetFormat(mNativePtr)
+            releaseNativeLock()
+            return ret
+        }
 
-    var started = false
+    /**
+     * Return the width of the image
+     */
+    val width: Int
+        get() {
+            checkRecycledAndLock()
+            val ret = nativeGetWidth(mNativePtr)
+            releaseNativeLock()
+            return ret
+        }
+
+    /**
+     * Return the height of the image
+     */
+    val height: Int
+        get() {
+            checkRecycledAndLock()
+            val ret = nativeGetHeight(mNativePtr)
+            releaseNativeLock()
+            return ret
+        }
 
     @Synchronized
-    fun recycle() {
-        mObtainedDrawable ?: return
-        if (mObtainedDrawable is AnimatedImageDrawable) {
-            (mObtainedDrawable as AnimatedImageDrawable?)?.stop()
-        }
-        if (mObtainedDrawable is BitmapDrawable) {
-            (mObtainedDrawable as BitmapDrawable?)?.bitmap?.recycle()
-        }
-        mObtainedDrawable?.callback = null
-        mObtainedDrawable = null
-        mCanvas = null
-        mBitmap?.recycle()
-        mBitmap = null
-        release()
+    private fun checkRecycledAndLock() {
+        check(mNativePtr != 0L) { "The image is recycled." }
+        nativeProcessCnt++
     }
 
-    private fun prepareBitmap() {
-        if (mBitmap != null) return
-        mBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-        mCanvas = Canvas(mBitmap!!)
+    @Synchronized
+    private fun releaseNativeLock() {
+        nativeProcessCnt--
+        if (needRecycle) recycle()
     }
 
-    private fun updateBitmap() {
-        prepareBitmap()
-        mObtainedDrawable!!.draw(mCanvas!!)
-    }
-
+    /**
+     * Render the image to `Bitmap`
+     */
     fun render(
         srcX: Int, srcY: Int, dst: Bitmap, dstX: Int, dstY: Int,
         width: Int, height: Int
     ) {
-        check(!hardware) { "Hardware buffer cannot be used in glgallery" }
-        val bitmap: Bitmap = if (animated) {
-            updateBitmap()
-            mBitmap!!
-        } else {
-            (mObtainedDrawable as BitmapDrawable).bitmap
-        }
-        nativeRender(
-            bitmap,
-            srcX,
-            srcY,
-            dst,
-            dstX,
-            dstY,
-            width,
-            height
-        )
+        checkRecycledAndLock()
+        nativeRender(mNativePtr, srcX, srcY, dst, dstX, dstY, width, height)
+        releaseNativeLock()
     }
 
+    /**
+     * Call `glTexImage2D` for init is true and
+     * call `glTexSubImage2D` for init is false.
+     * width * height must <= 512 * 512 or do nothing
+     */
     fun texImage(init: Boolean, offsetX: Int, offsetY: Int, width: Int, height: Int) {
-        check(!hardware) { "Hardware buffer cannot be used in glgallery" }
-        val bitmap: Bitmap? = if (animated) {
-            updateBitmap()
-            mBitmap
-        } else {
-            (mObtainedDrawable as BitmapDrawable?)?.bitmap
-        }
-        bitmap ?: return
-        nativeTexImage(
-            bitmap,
-            init,
-            offsetX,
-            offsetY,
-            width,
-            height
-        )
+        checkRecycledAndLock()
+        nativeTexImage(mNativePtr, init, offsetX, offsetY, width, height)
+        releaseNativeLock()
     }
 
-    fun start() {
-        if (!started) {
-            (mObtainedDrawable as AnimatedImageDrawable?)?.start()
-        }
+    /**
+     * Move to next frame. Do nothing for non-animation image
+     */
+    fun advance() {
+        checkRecycledAndLock()
+        nativeAdvance(mNativePtr)
+        releaseNativeLock()
     }
 
+    /**
+     * Return current frame delay. 0 for non-animation image
+     */
     val delay: Int
         get() {
-            if (animated)
-                // How to get frame delay?
-                return 100
-            return 0
+            checkRecycledAndLock()
+            val delay = nativeGetDelay(mNativePtr)
+            releaseNativeLock()
+            return if (delay <= 10) 100 else delay
         }
 
+    /**
+     * Return is the image opaque
+     */
     val isOpaque: Boolean
         get() {
-            return mObtainedDrawable?.opacity == PixelFormat.OPAQUE
+            checkRecycledAndLock()
+            val ret = nativeIsOpaque(mNativePtr)
+            releaseNativeLock()
+            return ret
         }
+
+    /**
+     * Free the native object associated with this image.
+     * It must be called when the image will not be used.
+     * The image can't be used after this method is called.
+     */
+    @Synchronized
+    fun recycle() {
+        if (mNativePtr != 0L) {
+            if (nativeProcessCnt != 0) {
+                needRecycle = true
+                return
+            }
+            nativeRecycle(mNativePtr)
+            mNativePtr = 0
+            imageList.remove(this)
+        }
+    }
+
+    /**
+     * Returns true if this image has been recycled.
+     */
+    val isRecycled: Boolean
+        get() = mNativePtr == 0L
 
     companion object {
-        var screenWidth: Int = 0
-        var screenHeight: Int = 0
-
-        @JvmStatic
-        fun initialize(context: Context) {
-            screenWidth = context.resources.displayMetrics.widthPixels
-            screenHeight = context.resources.displayMetrics.heightPixels
-        }
-
-        @Throws(DecodeException::class)
-        @JvmStatic
-        fun decode(stream: FileInputStream, hardware: Boolean = false): Image {
-            val src = ImageDecoder.createSource(
-                stream.channel.map(
-                    FileChannel.MapMode.READ_ONLY, 0,
-                    stream.available().toLong()
-                )
-            )
-            return Image(src, hardware = hardware)
-        }
-
-        @Throws(DecodeException::class)
-        @JvmStatic
-        fun decode(buffer: ByteBuffer, hardware: Boolean = false, release: () -> Unit? = {}): Image {
-            val src = ImageDecoder.createSource(buffer)
-            return Image(src, hardware = hardware) {
-                release()
-            }
+        const val FORMAT_NORMAL = 0
+        const val FORMAT_ANIMATED = 1
+        private val imageList = ArrayList<Image>()
+        private var needEvictAll = false
+        private fun newFromAddr(addr: Long): Image? {
+            return if (addr == 0L) null else Image(addr)
         }
 
         @JvmStatic
-        fun create(bitmap: Bitmap): Image {
-            return Image(null, bitmap.toDrawable(Resources.getSystem()), false)
+        fun lazyEvictAll() {
+            needEvictAll = true
         }
+
+        private fun evictAll() {
+            ArrayList(imageList).forEach(
+                Consumer { obj: Image -> obj.recycle() })
+            needEvictAll = false
+        }
+
+        /**
+         * Decode image from `InputStream`
+         */
+        @JvmStatic
+        fun decode(fd: FileDescriptor?): Image? {
+            return newFromAddr(nativeDecode(getFd(fd)))
+        }
+
+        /**
+         * Decode image from `InputStream`
+         */
+        @JvmStatic
+        fun decode(fd: Int): Image? {
+            return newFromAddr(nativeDecode(fd))
+        }
+
+        /**
+         * Decode image from `InputStream`
+         */
+        @JvmStatic
+        fun decodeAddr(addr: Long): Image? {
+            return newFromAddr(nativeDecodeAddr(addr))
+        }
+
+        /**
+         * Create a plain image from Bitmap
+         */
+        @JvmStatic
+        fun create(bitmap: Bitmap): Image? {
+            return newFromAddr(nativeCreate(bitmap))
+        }
+
+        /**
+         * Return all un-recycled `Image` instance count.
+         * It is useful for debug.
+         */
+        @JvmStatic
+        val imageCount: Int
+            get() = imageList.size
+
+        @JvmStatic
+        private external fun nativeDecode(fd: Int): Long
+
+        @JvmStatic
+        private external fun nativeDecodeAddr(addr: Long): Long
+
+        @JvmStatic
+        private external fun nativeCreate(bitmap: Bitmap): Long
 
         @JvmStatic
         private external fun nativeRender(
-            bitmap: Bitmap,
+            nativePtr: Long,
             srcX: Int, srcY: Int, dst: Bitmap, dstX: Int, dstY: Int,
             width: Int, height: Int
         )
 
         @JvmStatic
         private external fun nativeTexImage(
-            bitmap: Bitmap,
+            nativePtr: Long,
             init: Boolean,
             offsetX: Int,
             offsetY: Int,
             width: Int,
             height: Int
         )
+
+        @JvmStatic
+        private external fun nativeAdvance(nativePtr: Long)
+
+        @JvmStatic
+        private external fun nativeGetDelay(nativePtr: Long): Int
+
+        @JvmStatic
+        private external fun nativeIsOpaque(nativePtr: Long): Boolean
+
+        @JvmStatic
+        private external fun nativeRecycle(nativePtr: Long)
+
+        @JvmStatic
+        private external fun nativeGetFormat(nativePtr: Long): Int
+
+        @JvmStatic
+        private external fun nativeGetWidth(nativePtr: Long): Int
+
+        @JvmStatic
+        private external fun nativeGetHeight(nativePtr: Long): Int
     }
 }
