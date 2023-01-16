@@ -132,8 +132,7 @@ public class LoadImageView extends FixedAspectImageView implements Unikery<Image
 
     private ImageDrawable getImageDrawable() {
         Drawable drawable = getDrawable();
-        if (drawable instanceof TransitionDrawable) {
-            TransitionDrawable transitionDrawable = (TransitionDrawable) drawable;
+        if (drawable instanceof TransitionDrawable transitionDrawable) {
             if (transitionDrawable.getNumberOfLayers() == 2) {
                 drawable = transitionDrawable.getDrawable(1);
             }

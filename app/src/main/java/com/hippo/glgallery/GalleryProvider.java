@@ -246,14 +246,14 @@ public abstract class GalleryProvider {
         }
 
         public void add(Integer key, ImageWrapper value) {
-            if (value.getFormat() != Image.FORMAT_ANIMATED)
+            if (value.getFormat() == 0)
                 if (value.obtain())
                     put(key, value);
         }
 
         @Override
         protected int sizeOf(Integer key, ImageWrapper value) {
-            return value.getWidth() * value.getHeight() * 4;
+            return value.getWidth() * value.getHeight() * (value.getFormat() == 0 ? 4 : 15);
         }
 
         @Override
