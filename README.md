@@ -44,7 +44,7 @@
 
 # 描述
 
-NekoInverter 版的 EhViewer [白E]，原作者已不再维护
+NekoInverter 版的 EhViewer [白E]，原作者早已不再维护
 
 由于本人水平不足，本分支不接受功能请求，如果您有什么好想法或者发现什么问题欢迎直接提交 PR，软件常见使用问题和其他分支链接请参阅 [Q&A](https://github.com/EhViewer-NekoInverter/EhViewer/issues/18)
 
